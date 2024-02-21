@@ -1,7 +1,7 @@
 #!/bin/bash
 ####################################################################################
 ###
-### GRAM miner for ton.ninja
+### QUBIC miner for ton.ninja
 ### os.dog integration: shatll(@osdog)
 ###
 ####################################################################################
@@ -30,24 +30,18 @@
 
 
 baseDir=`dirname $0`
-[[ ! -f $baseDir/serveraddr.txt ]] && exit 1
-
-serverAddr=`cat $baseDir/serveraddr.txt`
-apiUrl=$serverAddr/stat
-API_TIMEOUT=5
-
-stats_template=`curl --connect-timeout 2 --max-time $API_TIMEOUT --silent --noproxy '*' $apiUrl`
-#echo $stats_template | jq '.'
 
 
-algo="SHA256"
-miner="miningPoolCli"
-ver="3.1.0"
+LOG="/dog/log/qubic.log"
+
+algo="qubic"
+miner="qli-Client"
+ver="1.8.6.0"
 
 data=$(
 		jq -n \
-		--arg algo "$algo" \
-		--arg miner "$miner" \
+    --arg algo "$algo" \
+    --arg miner "$miner" \
     --arg ver "$ver" \
 		'{
 			$miner,
@@ -55,43 +49,48 @@ data=$(
 			$algo
 		}'
 )
-
-if [[ `echo $stats_template | jq -r '.miner_uptime'` != null ]]; then
-  online_raw=`echo $stats_template | jq -r '.miner_uptime' | sed 's/\..*s//'`
-  [[ ! -z $online_raw ]] && online=$(date --date "-$online_raw sec" +%s)
-  data=`jq ". += {\"online\": \"$online\"}" <<< "$data"`
+minername="qli-runner"
+online_raw=`ps -C $minername -o etimes= | awk '{print $1}'`
+if [[ ! -z $online_raw ]]; then
+  online=$(date --date "-$online_raw sec" +%s) #absolute time
+  data=`jq ". += {\"online\": $online}" <<< "$data"`
 fi
 
-if [[ `echo $stats_template | jq -r '.miner_uptime'` != null ]]; then
-  total_hr=`echo $stats_template | jq -r '.total_hashrate'`
-  data=`jq ". += {\"total_hr\": \"$total_hr\"}" <<< "$data"`
+allGpuHrStr=`tail -n 20 $LOG | grep Trainer: | grep -Ev "Solution|argument|devices" | tail -n 1 | sed "s/.*Trainer: //"`
+
+busid_json=[]
+hr_json=[]
+gpuList=`cat /run/dog/gpuStats | jq '[.gpu[] | select(.brand != "I")]'`
+gpuCount=`gpu-detect all`
+totalHr=0
+for (( i=0; i < $gpuCount; i++ )); do
+  awkArgs="{print \$$i}"
+  gpuHrStr=`echo $allGpuHrStr | awk -F "|" "$awkArgs"`
+  gpuId=`echo $gpuHrStr | sed 's/.*GPU #\([0-9]*\).*/\1/'`
+
+  busid=`echo $gpuList | jq -r ".[$i].b"`
+  busid_json=`jq ". += [\"$busid\"]" <<< "$busid_json"`
+
+
+  hr=`echo $gpuHrStr | sed -e 's/GPU #.*: //; s# it\/s##'`
+  hr_json=`jq ". += [$hr]" <<< "$hr_json"`
+  totalHr=`echo "$totalHr + $hr" | bc`
+done
+
+if [[ ! -z $busid_json ]]; then
+  data=`jq ". += {\"busid\": $busid_json}" <<< "$data"`
 fi
 
-if [[ `echo $stats_template | jq -r '.gpus'` != null ]]; then
-  hr=`echo $stats_template | jq '[.gpus[].hashrate]'`
-  data=`jq ". += {\"hr\": $hr}" <<< "$data"`
-
-  platform0_busids=`cat /run/dog/gpuStats | jq '[[.gpu[] | select(.brand == "N")] | .[].b]'`
-  platform1_busids=`cat /run/dog/gpuStats | jq '[[.gpu[] | select(.brand == "N")] | .[].b]'`
-  gpuCount=`echo $stats_template | jq '.gpus| length'`
-  busid='[]'
-  for (( i=0; i < $gpuCount; i++ )); do
-    gpu=`echo $stats_template | jq ".gpus[$i]"`
-    platform_id=`echo $gpu | jq -r '.platform_id'`
-    device_id=`echo $gpu | jq -r '.device_id'`
-
-    if [[ $platform_id == 0 ]]; then
-      b=`echo $platform0_busids | jq -r ".[$device_id]"`
-    else
-      b=`echo $platform1_busids | jq -r ".[$device_id]"`
-    fi
-
-    busid=`jq ". += [\"$b\"]" <<< "$busid"`
-  done
-  data=`jq ". += {\"busid\": $busid}" <<< "$data"`
-
+if [[ ! -z $hr_json ]]; then
+  data=`jq ". += {\"hr\": $hr_json}" <<< "$data"`
+  data=`jq ". += {\"total_hr\": $totalHr}" <<< "$data"`
 fi
 
+allStatstr=`tail -n 20 $LOG | grep SOL: | tail -n 1`
+totalSolutions=`echo $allStatstr | sed -e 's/.*SOL: //; s#/.*##'`
+if [[ ! -z $totalSolutions ]]; then
+  data=`jq ". += {\"total_shares\": $totalSolutions}" <<< "$data"`
+fi
 
 #   finally return json data
 echo "$data" | jq -c
