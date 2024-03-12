@@ -93,7 +93,7 @@ if [[ ! -z $totalSolutions ]]; then
 fi
 
 epoch=`echo $allStatstr | sed -e 's/.*E://; s# .*##'`
-[[ $epoch ]] && ver="$ver: E${epoch}"
+[[ $epoch ]] && ver="$ver|E${epoch}"
 data=`jq ". += {\"ver\": \"$ver\"}" <<< "$data"`
 
 #   finally return json data
