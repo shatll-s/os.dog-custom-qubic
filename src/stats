@@ -36,16 +36,16 @@ LOG="/dog/log/qubic.log"
 
 algo="qubic"
 miner="qli-Client"
-ver="1.8.6.0"
+
+ver=`./qli-Client --version | sed 's/Client Version //'`
+[[ ! $ver ]] && ver='unknown'
 
 data=$(
 		jq -n \
     --arg algo "$algo" \
     --arg miner "$miner" \
-    --arg ver "$ver" \
 		'{
 			$miner,
-			$ver,
 			$algo
 		}'
 )
@@ -91,6 +91,10 @@ totalSolutions=`echo $allStatstr | sed -e 's/.*SOL: //; s#/.*##'`
 if [[ ! -z $totalSolutions ]]; then
   data=`jq ". += {\"total_shares\": $totalSolutions}" <<< "$data"`
 fi
+
+epoch=`echo $allStatstr | sed -e 's/.*E://; s# .*##'`
+[[ $epoch ]] && ver="$ver: E${epoch}"
+data=`jq ". += {\"ver\": \"$ver\"}" <<< "$data"`
 
 #   finally return json data
 echo "$data" | jq -c

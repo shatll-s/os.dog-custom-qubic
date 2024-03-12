@@ -60,7 +60,7 @@ json=$(
   '{
     "Settings": {
       $baseUrl, $amountOfThreads, $alias,
-      "autoupdateEnabled": false,
+      "autoupdateEnabled": true,
       "allowHwInfoCollect": true
     }
   }'
@@ -82,4 +82,3 @@ batch="./qli-Client $args"
 
 #	unbuffer is needed to keep colors with tee
 unbuffer $batch 2>&1 | tee --append $LOG
-
