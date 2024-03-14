@@ -37,7 +37,7 @@ LOG="/dog/log/qubic.log"
 algo="qubic"
 miner="qli-Client"
 
-ver=`./qli-Client --version | sed 's/Client Version //'`
+ver=`$baseDir/qli-Client --version | sed 's/Client Version //'`
 [[ ! $ver ]] && ver='unknown'
 
 data=$(
