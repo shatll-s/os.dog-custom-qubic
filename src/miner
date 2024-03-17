@@ -72,6 +72,8 @@ else
   json=`jq ".Settings += {\"payoutId\": \"$WALLET\"}" <<< "$json"`
 fi
 
+json=`jq ".Settings += {\"overwrites\": {\"CUDA\": \"12\"}}" <<< "$json"`
+
 echo "$json" > $SETTINGS_FILE
 
 $LINE
