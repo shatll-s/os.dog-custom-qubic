@@ -50,7 +50,7 @@ fi
 
 [[ $POOL ]] && pool=$POOL || pool="https://mine.qubic.li/"
 threads=`nproc`
-alias=`cat /etc/hostname`
+alias="`cat /etc/hostname`_cpu"
 
 json=$(
   jq -n \

@@ -50,7 +50,7 @@ data=$(
 		}'
 )
 minername="qli-runner"
-online_raw=`ps -C $minername -o etimes= | awk '{print $1}'`
+online_raw=`ps -C $minername -o etimes= | awk '{print $1}' | tac | tail -n 1`
 if [[ ! -z $online_raw ]]; then
   online=$(date --date "-$online_raw sec" +%s) #absolute time
   data=`jq ". += {\"online\": $online}" <<< "$data"`
