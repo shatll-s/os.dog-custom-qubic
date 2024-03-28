@@ -89,7 +89,7 @@ fi
 allStatstr=`tail -n 20 $LOG | grep SOL: | tail -n 1`
 totalSolutions=`echo $allStatstr | sed -e 's/.*SOL: //; s#/.*##'`
 if [[ ! -z $totalSolutions ]]; then
-  data=`jq ". += {\"total_shares\": $totalSolutions}" <<< "$data"`
+  data=`jq ". += {\"total_share\": $totalSolutions}" <<< "$data"`
 fi
 
 epoch=`echo $allStatstr | sed -e 's/.*E://; s# .*##'`
